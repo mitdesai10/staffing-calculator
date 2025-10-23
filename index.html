@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staffing Margin Calculator</title>
+    <title>Staffing Margin Calculator - Reverse Logic</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,7 +14,7 @@
     <header class="header">
         <div class="container">
             <h1 class="header-title">Staffing Margin Calculator</h1>
-            <p class="header-subtitle">Calculate margins and compare resource locations</p>
+            <p class="header-subtitle">Calculate what client rate you should charge to achieve your desired profit margin</p>
         </div>
     </header>
 
@@ -38,11 +38,6 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="clientRate">Client Rate ($/hr)</label>
-                            <input type="text" id="clientRate" class="form-control" readonly placeholder="Auto-fetched">
-                        </div>
-
-                        <div class="form-group">
                             <label for="location">Resource Location <span class="required">*</span></label>
                             <select id="location" class="form-control" required>
                                 <option value="">Select location...</option>
@@ -59,8 +54,8 @@
                             </div>
 
                             <div class="form-group">
-                                <label for="targetMargin">Target Margin (%) <span class="required">*</span></label>
-                                <input type="number" id="targetMargin" class="form-control" placeholder="e.g., 50" required min="0" max="100" step="0.01">
+                                <label for="desiredMargin">Desired Profit Margin (%) <span class="required">*</span></label>
+                                <input type="number" id="desiredMargin" class="form-control" placeholder="e.g., 70" required min="0" max="99" step="0.01">
                             </div>
                         </div>
 
@@ -89,21 +84,21 @@
                         <div class="selected-content">
                             <div class="metric-row">
                                 <div class="metric">
-                                    <span class="metric-label">Client Rate</span>
-                                    <span class="metric-value" id="resultClientRate">$0.00</span>
+                                    <span class="metric-label">My Cost/hr</span>
+                                    <span class="metric-value" id="resultMyCost">$0.00</span>
                                 </div>
                                 <div class="metric">
-                                    <span class="metric-label">Cost/hr</span>
-                                    <span class="metric-value" id="resultCost">$0.00</span>
+                                    <span class="metric-label">Required Client Rate/hr</span>
+                                    <span class="metric-value" id="resultClientRate">$0.00</span>
                                 </div>
                             </div>
                             <div class="metric-row">
                                 <div class="metric">
-                                    <span class="metric-label">Margin</span>
+                                    <span class="metric-label">Desired Margin</span>
                                     <span class="metric-value margin-value" id="resultMargin">0%</span>
                                 </div>
                                 <div class="metric">
-                                    <span class="metric-label">Total Cost</span>
+                                    <span class="metric-label">Total Cost to Client</span>
                                     <span class="metric-value total-cost" id="resultTotalCost">$0.00</span>
                                 </div>
                             </div>
@@ -112,15 +107,14 @@
 
                     <!-- Comparison Section -->
                     <div class="comparison-section">
-                        <h3 class="section-title">Location Comparison</h3>
+                        <h3 class="section-title">What You Should Charge - All Locations</h3>
                         <div class="comparison-cards">
                             <!-- Onshore Card -->
                             <div class="comparison-card" id="onshoreCard">
                                 <div class="card-icon">🏢</div>
                                 <h4 class="card-title">Onshore</h4>
                                 <div class="card-cost" id="onshoreCost">$0.00/hr</div>
-                                <div class="card-margin" id="onshoreMargin">0%</div>
-                                <div class="card-status" id="onshoreStatus">—</div>
+                                <div class="card-margin" id="onshoreClientRate">Client Rate</div>
                             </div>
 
                             <!-- Offshore Card -->
@@ -128,8 +122,7 @@
                                 <div class="card-icon">🌏</div>
                                 <h4 class="card-title">Offshore</h4>
                                 <div class="card-cost" id="offshoreCost">$0.00/hr</div>
-                                <div class="card-margin" id="offshoreMargin">0%</div>
-                                <div class="card-status" id="offshoreStatus">—</div>
+                                <div class="card-margin" id="offshoreClientRate">Client Rate</div>
                             </div>
 
                             <!-- Nearshore Card -->
@@ -137,27 +130,49 @@
                                 <div class="card-icon">📍</div>
                                 <h4 class="card-title">Nearshore</h4>
                                 <div class="card-cost" id="nearshoreCost">$0.00/hr</div>
-                                <div class="card-margin" id="nearshoreMargin">0%</div>
-                                <div class="card-status" id="nearshoreStatus">—</div>
+                                <div class="card-margin" id="nearshoreClientRate">Client Rate</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Recommendation Box -->
-                    <div class="recommendation-box" id="recommendationBox">
-                        <div class="recommendation-icon">💡</div>
-                        <div class="recommendation-content">
-                            <h4>Recommendation</h4>
-                            <p id="recommendationText">—</p>
+                    <!-- Summary Section -->
+                    <div class="summary-section">
+                        <h3 class="section-title">Summary</h3>
+                        <div class="summary-grid">
+                            <div class="summary-item">
+                                <span class="summary-label">Total Hours</span>
+                                <span class="summary-value" id="summaryHours">0</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Avg Client Rate</span>
+                                <span class="summary-value" id="summaryAvgRate">$0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Total Cost (if all Onshore)</span>
+                                <span class="summary-value" id="summaryOnshore">$0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Total Cost (if all Offshore)</span>
+                                <span class="summary-value" id="summaryOffshore">$0.00</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="summary-label">Total Cost (if all Nearshore)</span>
+                                <span class="summary-value" id="summaryNearshore">$0.00</span>
+                            </div>
+                            <div class="summary-item highlight">
+                                <span class="summary-label">Total Cost (Selected Location)</span>
+                                <span class="summary-value" id="summarySelected">$0.00</span>
+                            </div>
                         </div>
                     </div>
+
                 </div>
 
                 <!-- Placeholder when no results -->
                 <div class="results-placeholder" id="resultsPlaceholder">
                     <div class="placeholder-icon">📊</div>
                     <h3>Ready to Calculate</h3>
-                    <p>Fill in the position details and click Calculate to see your results</p>
+                    <p>Enter your role, location, hours, and desired profit margin to see what you should charge clients</p>
                 </div>
 
             </div>

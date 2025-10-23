@@ -22,28 +22,8 @@ function initializeApp() {
     });
     
     // Add event listeners
-    roleSelect.addEventListener('change', handleRoleChange);
     document.getElementById('calculatorForm').addEventListener('submit', handleCalculate);
     document.getElementById('clearBtn').addEventListener('click', handleClear);
-}
-
-// ========================================
-// Handle Role Selection
-// ========================================
-
-function handleRoleChange(e) {
-    const selectedRole = e.target.value;
-    
-    if (!selectedRole) {
-        document.getElementById('clientRate').value = '';
-        return;
-    }
-    
-    const roleData = rateCardData.find(r => r.role === selectedRole);
-    
-    if (roleData) {
-        document.getElementById('clientRate').value = `$${roleData.clientRate.toFixed(2)}`;
-    }
 }
 
 // ========================================
@@ -57,10 +37,10 @@ function handleCalculate(e) {
     const role = document.getElementById('role').value;
     const location = document.getElementById('location').value;
     const hours = parseFloat(document.getElementById('hours').value);
-    const targetMargin = parseFloat(document.getElementById('targetMargin').value) / 100;
+    const desiredMargin = parseFloat(document.getElementById('desiredMargin').value) / 100;
     
     // Validate
-    if (!role || !location || !hours || isNaN(targetMargin)) {
+    if (!role || !location || !hours || isNaN(desiredMargin)) {
         alert('Please fill in all required fields');
         return;
     }
@@ -74,19 +54,17 @@ function handleCalculate(e) {
     }
     
     // Calculate results
-    const results = calculateMargins(roleData, location, hours, targetMargin);
+    const results = calculateClientRates(roleData, location, hours, desiredMargin);
     
     // Display results
     displayResults(results);
 }
 
 // ========================================
-// Calculate Margins
+// Calculate Client Rates (REVERSE LOGIC)
 // ========================================
 
-function calculateMargins(roleData, selectedLocation, hours, targetMargin) {
-    const clientRate = roleData.clientRate;
-    
+function calculateClientRates(roleData, selectedLocation, hours, desiredMargin) {
     // Get costs for all locations
     const costs = {
         onshore: roleData.onshore.cost,
@@ -94,82 +72,40 @@ function calculateMargins(roleData, selectedLocation, hours, targetMargin) {
         nearshore: roleData.nearshore.cost
     };
     
-    // Calculate margins for all locations
-    const margins = {
-        onshore: (clientRate - costs.onshore) / clientRate,
-        offshore: (clientRate - costs.offshore) / clientRate,
-        nearshore: (clientRate - costs.nearshore) / clientRate
+    // Calculate required client rates for all locations
+    // Formula: Client Rate = Cost / (1 - Desired Margin)
+    const clientRates = {
+        onshore: costs.onshore > 0 ? costs.onshore / (1 - desiredMargin) : 0,
+        offshore: costs.offshore > 0 ? costs.offshore / (1 - desiredMargin) : 0,
+        nearshore: costs.nearshore > 0 ? costs.nearshore / (1 - desiredMargin) : 0
     };
     
     // Get selected location data
     const selectedCost = costs[selectedLocation];
-    const selectedMargin = margins[selectedLocation];
-    const totalCost = hours * selectedCost;
+    const selectedClientRate = clientRates[selectedLocation];
+    const totalCostToClient = hours * selectedClientRate;
     
-    // Determine which locations meet target
-    const meetTarget = {
-        onshore: margins.onshore >= targetMargin && costs.onshore > 0,
-        offshore: margins.offshore >= targetMargin && costs.offshore > 0,
-        nearshore: margins.nearshore >= targetMargin && costs.nearshore > 0
+    // Calculate summary values
+    const summary = {
+        totalHours: hours,
+        avgClientRate: selectedClientRate,
+        totalOnshore: hours * clientRates.onshore,
+        totalOffshore: hours * clientRates.offshore,
+        totalNearshore: hours * clientRates.nearshore,
+        totalSelected: totalCostToClient
     };
-    
-    // Generate recommendation
-    const recommendation = generateRecommendation(meetTarget, margins, targetMargin);
     
     return {
-        clientRate,
         selectedLocation,
         selectedCost,
-        selectedMargin,
-        totalCost,
+        selectedClientRate,
+        totalCostToClient,
         hours,
-        targetMargin,
+        desiredMargin,
         costs,
-        margins,
-        meetTarget,
-        recommendation
+        clientRates,
+        summary
     };
-}
-
-// ========================================
-// Generate Recommendation
-// ========================================
-
-function generateRecommendation(meetTarget, margins, targetMargin) {
-    const meetingLocations = [];
-    
-    if (meetTarget.onshore) meetingLocations.push('Onshore');
-    if (meetTarget.offshore) meetingLocations.push('Offshore');
-    if (meetTarget.nearshore) meetingLocations.push('Nearshore');
-    
-    if (meetingLocations.length === 0) {
-        return `None of the locations meet your ${(targetMargin * 100).toFixed(0)}% target margin. Consider adjusting your target or client rate.`;
-    }
-    
-    if (meetingLocations.length === 3) {
-        // Find the best option (highest margin)
-        let best = 'Onshore';
-        let bestMargin = margins.onshore;
-        
-        if (margins.offshore > bestMargin) {
-            best = 'Offshore';
-            bestMargin = margins.offshore;
-        }
-        if (margins.nearshore > bestMargin) {
-            best = 'Nearshore';
-            bestMargin = margins.nearshore;
-        }
-        
-        return `All locations meet your target! ${best} offers the highest margin at ${(bestMargin * 100).toFixed(1)}%.`;
-    }
-    
-    if (meetingLocations.length === 1) {
-        const location = meetingLocations[0].toLowerCase();
-        return `${meetingLocations[0]} is the only location that meets your ${(targetMargin * 100).toFixed(0)}% target margin with ${(margins[location] * 100).toFixed(1)}%.`;
-    }
-    
-    // Multiple locations meet target
-    return `${meetingLocations.join(' and ')} meet your ${(targetMargin * 100).toFixed(0)}% target margin. Choose based on your other requirements.`;
 }
 
 // ========================================
@@ -186,30 +122,18 @@ function displayResults(results) {
     document.getElementById('selectedLocationTitle').textContent = `Selected: ${locationTitle}`;
     
     // Update selected location card
-    document.getElementById('resultClientRate').textContent = `$${results.clientRate.toFixed(2)}`;
-    document.getElementById('resultCost').textContent = `$${results.selectedCost.toFixed(2)}`;
-    
-    const marginElement = document.getElementById('resultMargin');
-    marginElement.textContent = `${(results.selectedMargin * 100).toFixed(1)}%`;
-    
-    // Color code margin
-    if (results.selectedMargin >= results.targetMargin) {
-        marginElement.classList.remove('below-target');
-        marginElement.classList.add('text-success');
-    } else {
-        marginElement.classList.remove('text-success');
-        marginElement.classList.add('below-target');
-    }
-    
-    document.getElementById('resultTotalCost').textContent = `$${results.totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    document.getElementById('resultMyCost').textContent = formatCurrency(results.selectedCost);
+    document.getElementById('resultClientRate').textContent = formatCurrency(results.selectedClientRate);
+    document.getElementById('resultMargin').textContent = formatPercentage(results.desiredMargin);
+    document.getElementById('resultTotalCost').textContent = formatCurrency(results.totalCostToClient);
     
     // Update comparison cards
-    updateComparisonCard('onshore', results);
-    updateComparisonCard('offshore', results);
-    updateComparisonCard('nearshore', results);
+    updateComparisonCard('onshore', results.costs.onshore, results.clientRates.onshore);
+    updateComparisonCard('offshore', results.costs.offshore, results.clientRates.offshore);
+    updateComparisonCard('nearshore', results.costs.nearshore, results.clientRates.nearshore);
     
-    // Update recommendation
-    document.getElementById('recommendationText').textContent = results.recommendation;
+    // Update summary section
+    updateSummary(results.summary);
     
     // Scroll to results on mobile
     if (window.innerWidth < 992) {
@@ -221,39 +145,32 @@ function displayResults(results) {
 // Update Comparison Card
 // ========================================
 
-function updateComparisonCard(location, results) {
-    const cost = results.costs[location];
-    const margin = results.margins[location];
-    const meetsTarget = results.meetTarget[location];
+function updateComparisonCard(location, cost, clientRate) {
+    // Update cost (this is MY cost from rate card)
+    document.getElementById(`${location}Cost`).textContent = cost > 0 ? `My Cost: ${formatCurrency(cost)}` : 'N/A';
     
-    // Update cost
-    document.getElementById(`${location}Cost`).textContent = cost > 0 ? `$${cost.toFixed(2)}/hr` : 'N/A';
-    
-    // Update margin
-    const marginElement = document.getElementById(`${location}Margin`);
-    if (cost > 0) {
-        marginElement.textContent = `${(margin * 100).toFixed(1)}% margin`;
+    // Update client rate (what I should charge)
+    const clientRateElement = document.getElementById(`${location}ClientRate`);
+    if (cost > 0 && clientRate > 0) {
+        clientRateElement.textContent = `Charge: ${formatCurrency(clientRate)}/hr`;
+        clientRateElement.style.color = 'var(--primary-blue)';
+        clientRateElement.style.fontWeight = '700';
     } else {
-        marginElement.textContent = 'N/A';
+        clientRateElement.textContent = 'N/A';
     }
-    
-    // Update status
-    const statusElement = document.getElementById(`${location}Status`);
-    const cardElement = document.getElementById(`${location}Card`);
-    
-    if (cost === 0) {
-        statusElement.textContent = '—';
-        statusElement.className = 'card-status';
-        cardElement.classList.remove('meets-target');
-    } else if (meetsTarget) {
-        statusElement.textContent = '✓ Meets Target';
-        statusElement.className = 'card-status meets';
-        cardElement.classList.add('meets-target');
-    } else {
-        statusElement.textContent = '✗ Below Target';
-        statusElement.className = 'card-status below';
-        cardElement.classList.remove('meets-target');
-    }
+}
+
+// ========================================
+// Update Summary Section
+// ========================================
+
+function updateSummary(summary) {
+    document.getElementById('summaryHours').textContent = summary.totalHours;
+    document.getElementById('summaryAvgRate').textContent = formatCurrency(summary.avgClientRate);
+    document.getElementById('summaryOnshore').textContent = formatCurrency(summary.totalOnshore);
+    document.getElementById('summaryOffshore').textContent = formatCurrency(summary.totalOffshore);
+    document.getElementById('summaryNearshore').textContent = formatCurrency(summary.totalNearshore);
+    document.getElementById('summarySelected').textContent = formatCurrency(summary.totalSelected);
 }
 
 // ========================================
@@ -263,7 +180,6 @@ function updateComparisonCard(location, results) {
 function handleClear() {
     // Reset form
     document.getElementById('calculatorForm').reset();
-    document.getElementById('clientRate').value = '';
     
     // Hide results, show placeholder
     document.getElementById('resultsPanel').style.display = 'none';
@@ -280,9 +196,11 @@ function handleClear() {
 // ========================================
 
 function formatCurrency(value) {
+    if (isNaN(value) || value === 0) return '$0.00';
     return `$${value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 }
 
 function formatPercentage(value) {
+    if (isNaN(value)) return '0%';
     return `${(value * 100).toFixed(1)}%`;
 }

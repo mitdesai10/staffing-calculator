@@ -445,6 +445,58 @@ select.form-control {
 }
 
 /* ========================================
+   Summary Section
+   ======================================== */
+
+.summary-section {
+    padding: var(--spacing-lg);
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-md);
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.summary-item {
+    background: white;
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.summary-item.highlight {
+    background: linear-gradient(135deg, #E6F5FF 0%, #D4ECFF 100%);
+    border-color: var(--primary-blue);
+    border-width: 2px;
+}
+
+.summary-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-medium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.summary-item.highlight .summary-value {
+    color: var(--primary-blue);
+}
+
+/* ========================================
    Recommendation Box
    ======================================== */
 
@@ -510,6 +562,10 @@ select.form-control {
     }
     
     .comparison-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary-grid {
         grid-template-columns: 1fr;
     }
 }
