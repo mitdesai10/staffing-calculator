@@ -1,14 +1,17 @@
 // ========================================
+// Global State
+// ========================================
+
+let positions = [];
+let positionIdCounter = 0;
+
+// ========================================
 // Initialize Application
 // ========================================
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
-
-// ========================================
-// Populate Role Dropdown
-// ========================================
 
 function initializeApp() {
     const roleSelect = document.getElementById('role');
@@ -22,15 +25,15 @@ function initializeApp() {
     });
     
     // Add event listeners
-    document.getElementById('calculatorForm').addEventListener('submit', handleCalculate);
-    document.getElementById('clearBtn').addEventListener('click', handleClear);
+    document.getElementById('positionForm').addEventListener('submit', handleAddPosition);
+    document.getElementById('clearAllBtn').addEventListener('click', handleClearAll);
 }
 
 // ========================================
-// Handle Calculate
+// Handle Add Position
 // ========================================
 
-function handleCalculate(e) {
+function handleAddPosition(e) {
     e.preventDefault();
     
     // Get form values
@@ -53,142 +56,171 @@ function handleCalculate(e) {
         return;
     }
     
-    // Calculate results
-    const results = calculateClientRates(roleData, location, hours, desiredMargin);
+    // Calculate position data
+    const cost = roleData[location].cost;
+    const clientRate = cost > 0 ? cost / (1 - desiredMargin) : 0;
+    const totalCost = hours * clientRate;
     
-    // Display results
-    displayResults(results);
-}
-
-// ========================================
-// Calculate Client Rates (REVERSE LOGIC)
-// ========================================
-
-function calculateClientRates(roleData, selectedLocation, hours, desiredMargin) {
-    // Get costs for all locations
-    const costs = {
-        onshore: roleData.onshore.cost,
-        offshore: roleData.offshore.cost,
-        nearshore: roleData.nearshore.cost
-    };
-    
-    // Calculate required client rates for all locations
-    // Formula: Client Rate = Cost / (1 - Desired Margin)
-    const clientRates = {
-        onshore: costs.onshore > 0 ? costs.onshore / (1 - desiredMargin) : 0,
-        offshore: costs.offshore > 0 ? costs.offshore / (1 - desiredMargin) : 0,
-        nearshore: costs.nearshore > 0 ? costs.nearshore / (1 - desiredMargin) : 0
-    };
-    
-    // Get selected location data
-    const selectedCost = costs[selectedLocation];
-    const selectedClientRate = clientRates[selectedLocation];
-    const totalCostToClient = hours * selectedClientRate;
-    
-    // Calculate summary values
-    const summary = {
-        totalHours: hours,
-        avgClientRate: selectedClientRate,
-        totalOnshore: hours * clientRates.onshore,
-        totalOffshore: hours * clientRates.offshore,
-        totalNearshore: hours * clientRates.nearshore,
-        totalSelected: totalCostToClient
-    };
-    
-    return {
-        selectedLocation,
-        selectedCost,
-        selectedClientRate,
-        totalCostToClient,
+    // Create position object
+    const position = {
+        id: ++positionIdCounter,
+        role,
+        location,
         hours,
         desiredMargin,
-        costs,
-        clientRates,
-        summary
+        cost,
+        clientRate,
+        totalCost,
+        roleData
     };
-}
-
-// ========================================
-// Display Results
-// ========================================
-
-function displayResults(results) {
-    // Hide placeholder, show results
-    document.getElementById('resultsPlaceholder').style.display = 'none';
-    document.getElementById('resultsPanel').style.display = 'block';
     
-    // Update selected location title
-    const locationTitle = results.selectedLocation.charAt(0).toUpperCase() + results.selectedLocation.slice(1);
-    document.getElementById('selectedLocationTitle').textContent = `Selected: ${locationTitle}`;
+    // Add to positions array
+    positions.push(position);
     
-    // Update selected location card
-    document.getElementById('resultMyCost').textContent = formatCurrency(results.selectedCost);
-    document.getElementById('resultClientRate').textContent = formatCurrency(results.selectedClientRate);
-    document.getElementById('resultMargin').textContent = formatPercentage(results.desiredMargin);
-    document.getElementById('resultTotalCost').textContent = formatCurrency(results.totalCostToClient);
+    // Update UI
+    renderPositions();
+    updateSummary();
     
-    // Update comparison cards
-    updateComparisonCard('onshore', results.costs.onshore, results.clientRates.onshore);
-    updateComparisonCard('offshore', results.costs.offshore, results.clientRates.offshore);
-    updateComparisonCard('nearshore', results.costs.nearshore, results.clientRates.nearshore);
-    
-    // Update summary section
-    updateSummary(results.summary);
-    
-    // Scroll to results on mobile
-    if (window.innerWidth < 992) {
-        document.getElementById('resultsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-}
-
-// ========================================
-// Update Comparison Card
-// ========================================
-
-function updateComparisonCard(location, cost, clientRate) {
-    // Update cost (this is MY cost from rate card)
-    document.getElementById(`${location}Cost`).textContent = cost > 0 ? `My Cost: ${formatCurrency(cost)}` : 'N/A';
-    
-    // Update client rate (what I should charge)
-    const clientRateElement = document.getElementById(`${location}ClientRate`);
-    if (cost > 0 && clientRate > 0) {
-        clientRateElement.textContent = `Charge: ${formatCurrency(clientRate)}/hr`;
-        clientRateElement.style.color = 'var(--primary-blue)';
-        clientRateElement.style.fontWeight = '700';
-    } else {
-        clientRateElement.textContent = 'N/A';
-    }
-}
-
-// ========================================
-// Update Summary Section
-// ========================================
-
-function updateSummary(summary) {
-    document.getElementById('summaryHours').textContent = summary.totalHours;
-    document.getElementById('summaryAvgRate').textContent = formatCurrency(summary.avgClientRate);
-    document.getElementById('summaryOnshore').textContent = formatCurrency(summary.totalOnshore);
-    document.getElementById('summaryOffshore').textContent = formatCurrency(summary.totalOffshore);
-    document.getElementById('summaryNearshore').textContent = formatCurrency(summary.totalNearshore);
-    document.getElementById('summarySelected').textContent = formatCurrency(summary.totalSelected);
-}
-
-// ========================================
-// Handle Clear
-// ========================================
-
-function handleClear() {
     // Reset form
-    document.getElementById('calculatorForm').reset();
+    document.getElementById('positionForm').reset();
     
-    // Hide results, show placeholder
-    document.getElementById('resultsPanel').style.display = 'none';
-    document.getElementById('resultsPlaceholder').style.display = 'block';
+    // Show results, hide placeholder
+    document.getElementById('resultsPlaceholder').style.display = 'none';
+    document.getElementById('positionsPanel').style.display = 'block';
+    document.getElementById('summaryPanel').style.display = 'block';
+}
+
+// ========================================
+// Render Positions
+// ========================================
+
+function renderPositions() {
+    const positionsList = document.getElementById('positionsList');
+    const positionCount = document.getElementById('positionCount');
     
-    // Scroll to top on mobile
-    if (window.innerWidth < 992) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Update count
+    positionCount.textContent = `${positions.length} position${positions.length !== 1 ? 's' : ''}`;
+    
+    // Clear list
+    positionsList.innerHTML = '';
+    
+    // Render each position
+    positions.forEach(position => {
+        const card = createPositionCard(position);
+        positionsList.appendChild(card);
+    });
+}
+
+// ========================================
+// Create Position Card
+// ========================================
+
+function createPositionCard(position) {
+    const card = document.createElement('div');
+    card.className = 'position-card';
+    card.innerHTML = `
+        <div class="position-header">
+            <div>
+                <div class="position-title">${position.role}</div>
+                <span class="position-location ${position.location}">${position.location}</span>
+            </div>
+            <button class="position-delete" onclick="deletePosition(${position.id})" title="Delete">✕</button>
+        </div>
+        <div class="position-metrics">
+            <div class="position-metric">
+                <span class="position-metric-label">Hours</span>
+                <span class="position-metric-value">${position.hours}</span>
+            </div>
+            <div class="position-metric">
+                <span class="position-metric-label">Desired Margin</span>
+                <span class="position-metric-value">${formatPercentage(position.desiredMargin)}</span>
+            </div>
+            <div class="position-metric">
+                <span class="position-metric-label">My Cost/hr</span>
+                <span class="position-metric-value">${formatCurrency(position.cost)}</span>
+            </div>
+            <div class="position-metric">
+                <span class="position-metric-label">Client Rate/hr</span>
+                <span class="position-metric-value">${formatCurrency(position.clientRate)}</span>
+            </div>
+            <div class="position-metric" style="grid-column: span 2;">
+                <span class="position-metric-label">Total Cost to Client</span>
+                <span class="position-metric-value" style="font-size: 1.25rem; color: var(--primary-blue);">${formatCurrency(position.totalCost)}</span>
+            </div>
+        </div>
+    `;
+    return card;
+}
+
+// ========================================
+// Delete Position
+// ========================================
+
+function deletePosition(id) {
+    positions = positions.filter(p => p.id !== id);
+    
+    if (positions.length === 0) {
+        // Show placeholder if no positions
+        document.getElementById('positionsPanel').style.display = 'none';
+        document.getElementById('summaryPanel').style.display = 'none';
+        document.getElementById('resultsPlaceholder').style.display = 'block';
+    } else {
+        renderPositions();
+        updateSummary();
     }
+}
+
+// ========================================
+// Clear All Positions
+// ========================================
+
+function handleClearAll() {
+    if (positions.length === 0) return;
+    
+    if (confirm('Are you sure you want to clear all positions?')) {
+        positions = [];
+        document.getElementById('positionsPanel').style.display = 'none';
+        document.getElementById('summaryPanel').style.display = 'none';
+        document.getElementById('resultsPlaceholder').style.display = 'block';
+    }
+}
+
+// ========================================
+// Update Summary
+// ========================================
+
+function updateSummary() {
+    if (positions.length === 0) return;
+    
+    // Calculate totals
+    const totalPositions = positions.length;
+    const totalHours = positions.reduce((sum, p) => sum + p.hours, 0);
+    const avgClientRate = positions.reduce((sum, p) => sum + p.clientRate, 0) / totalPositions;
+    const totalSelected = positions.reduce((sum, p) => sum + p.totalCost, 0);
+    
+    // Calculate "what if" scenarios
+    let totalOnshore = 0;
+    let totalOffshore = 0;
+    let totalNearshore = 0;
+    
+    positions.forEach(p => {
+        const onshoreRate = p.roleData.onshore.cost / (1 - p.desiredMargin);
+        const offshoreRate = p.roleData.offshore.cost / (1 - p.desiredMargin);
+        const nearshoreRate = p.roleData.nearshore.cost / (1 - p.desiredMargin);
+        
+        totalOnshore += p.hours * onshoreRate;
+        totalOffshore += p.hours * offshoreRate;
+        totalNearshore += p.hours * nearshoreRate;
+    });
+    
+    // Update UI
+    document.getElementById('summaryPositions').textContent = totalPositions;
+    document.getElementById('summaryHours').textContent = totalHours;
+    document.getElementById('summaryAvgRate').textContent = formatCurrency(avgClientRate);
+    document.getElementById('summaryOnshore').textContent = formatCurrency(totalOnshore);
+    document.getElementById('summaryOffshore').textContent = formatCurrency(totalOffshore);
+    document.getElementById('summaryNearshore').textContent = formatCurrency(totalNearshore);
+    document.getElementById('summarySelected').textContent = formatCurrency(totalSelected);
 }
 
 // ========================================
