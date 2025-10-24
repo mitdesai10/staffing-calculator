@@ -13,8 +13,18 @@
     <!-- Header -->
     <header class="header">
         <div class="container">
-            <h1 class="header-title">Staffing Margin Calculator</h1>
-            <p class="header-subtitle">Calculate what client rate you should charge to achieve your desired profit margin</p>
+            <div class="header-content">
+                <div>
+                    <h1 class="header-title">Staffing Margin Calculator</h1>
+                    <p class="header-subtitle">Calculate what client rate you should charge to achieve your desired profit margin</p>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="btn-refresh" onclick="refreshData()" title="Refresh data from Google Sheets">
+                        🔄 Refresh Data
+                    </button>
+                    <div class="last-update" id="lastUpdate">Loading data...</div>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -155,7 +165,9 @@
         </div>
     </footer>
 
+    <script src="onedriveConfig.js"></script>
     <script src="rateCardData.js"></script>
+    <script src="onedriveLoader.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

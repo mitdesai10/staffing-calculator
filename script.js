@@ -10,23 +10,44 @@ let positionIdCounter = 0;
 // ========================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
+    // Wait a bit for sheets data to load
+    setTimeout(initializeApp, 500);
 });
 
+// Callback when data is loaded from sheets
+function onDataLoaded() {
+    console.log('Data loaded callback triggered');
+    populateRoles();
+}
+
 function initializeApp() {
-    const roleSelect = document.getElementById('role');
-    
-    // Populate roles
-    rateCardData.forEach(role => {
-        const option = document.createElement('option');
-        option.value = role.role;
-        option.textContent = role.role;
-        roleSelect.appendChild(option);
-    });
+    populateRoles();
     
     // Add event listeners
     document.getElementById('positionForm').addEventListener('submit', handleAddPosition);
     document.getElementById('clearAllBtn').addEventListener('click', handleClearAll);
+}
+
+function populateRoles() {
+    const roleSelect = document.getElementById('role');
+    
+    // Clear existing options except the first one
+    while (roleSelect.options.length > 1) {
+        roleSelect.remove(1);
+    }
+    
+    // Populate roles
+    if (rateCardData && rateCardData.length > 0) {
+        rateCardData.forEach(role => {
+            const option = document.createElement('option');
+            option.value = role.role;
+            option.textContent = role.role;
+            roleSelect.appendChild(option);
+        });
+        console.log(`✓ ${rateCardData.length} roles loaded into dropdown`);
+    } else {
+        console.warn('No rate card data available');
+    }
 }
 
 // ========================================
