@@ -208,31 +208,76 @@ function updateSummary() {
     const totalPositions = positions.length;
     const totalHours = positions.reduce((sum, p) => sum + p.hours, 0);
     const avgClientRate = positions.reduce((sum, p) => sum + p.clientRate, 0) / totalPositions;
+    const avgDesiredMargin = positions.reduce((sum, p) => sum + p.desiredMargin, 0) / totalPositions;
     const totalSelected = positions.reduce((sum, p) => sum + p.totalCost, 0);
     
-    // Calculate "what if" scenarios
+    // Calculate "what if" scenarios with average margins for each location
     let totalOnshore = 0;
     let totalOffshore = 0;
     let totalNearshore = 0;
     
+    let onshoreMarginSum = 0;
+    let offshoreMarginSum = 0;
+    let nearshoreMarginSum = 0;
+    let onshoreCount = 0;
+    let offshoreCount = 0;
+    let nearshoreCount = 0;
+    
     positions.forEach(p => {
-        const onshoreRate = p.roleData.onshore.cost / (1 - p.desiredMargin);
-        const offshoreRate = p.roleData.offshore.cost / (1 - p.desiredMargin);
-        const nearshoreRate = p.roleData.nearshore.cost / (1 - p.desiredMargin);
+        const onshoreCost = p.roleData.onshore.cost;
+        const offshoreCost = p.roleData.offshore.cost;
+        const nearshoreCost = p.roleData.nearshore.cost;
+        
+        const onshoreRate = onshoreCost > 0 ? onshoreCost / (1 - p.desiredMargin) : 0;
+        const offshoreRate = offshoreCost > 0 ? offshoreCost / (1 - p.desiredMargin) : 0;
+        const nearshoreRate = nearshoreCost > 0 ? nearshoreCost / (1 - p.desiredMargin) : 0;
         
         totalOnshore += p.hours * onshoreRate;
         totalOffshore += p.hours * offshoreRate;
         totalNearshore += p.hours * nearshoreRate;
+        
+        // Calculate actual margins achieved
+        if (onshoreRate > 0) {
+            const onshoreActualMargin = (onshoreRate - onshoreCost) / onshoreRate;
+            onshoreMarginSum += onshoreActualMargin;
+            onshoreCount++;
+        }
+        
+        if (offshoreRate > 0) {
+            const offshoreActualMargin = (offshoreRate - offshoreCost) / offshoreRate;
+            offshoreMarginSum += offshoreActualMargin;
+            offshoreCount++;
+        }
+        
+        if (nearshoreRate > 0) {
+            const nearshoreActualMargin = (nearshoreRate - nearshoreCost) / nearshoreRate;
+            nearshoreMarginSum += nearshoreActualMargin;
+            nearshoreCount++;
+        }
     });
+    
+    // Calculate average margins for each location (these should equal desired margin)
+    const avgOnshoreMargin = onshoreCount > 0 ? onshoreMarginSum / onshoreCount : 0;
+    const avgOffshoreMargin = offshoreCount > 0 ? offshoreMarginSum / offshoreCount : 0;
+    const avgNearshoreMargin = nearshoreCount > 0 ? nearshoreMarginSum / nearshoreCount : 0;
     
     // Update UI
     document.getElementById('summaryPositions').textContent = totalPositions;
     document.getElementById('summaryHours').textContent = totalHours;
     document.getElementById('summaryAvgRate').textContent = formatCurrency(avgClientRate);
+    document.getElementById('summaryAvgMargin').textContent = formatPercentage(avgDesiredMargin);
+    
     document.getElementById('summaryOnshore').textContent = formatCurrency(totalOnshore);
+    document.getElementById('summaryOnshoreMargin').textContent = `at ${formatPercentage(avgOnshoreMargin)} margin`;
+    
     document.getElementById('summaryOffshore').textContent = formatCurrency(totalOffshore);
+    document.getElementById('summaryOffshoreMargin').textContent = `at ${formatPercentage(avgOffshoreMargin)} margin`;
+    
     document.getElementById('summaryNearshore').textContent = formatCurrency(totalNearshore);
+    document.getElementById('summaryNearshoreMargin').textContent = `at ${formatPercentage(avgNearshoreMargin)} margin`;
+    
     document.getElementById('summarySelected').textContent = formatCurrency(totalSelected);
+    document.getElementById('summarySelectedMargin').textContent = `at ${formatPercentage(avgDesiredMargin)} avg margin`;
 }
 
 // ========================================

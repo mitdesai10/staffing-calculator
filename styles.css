@@ -625,6 +625,18 @@ select.form-control {
     color: var(--text-dark);
 }
 
+.summary-value-with-margin {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.summary-margin {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--success-green);
+}
+
 .summary-item.highlight .summary-value {
     color: var(--primary-blue);
 }
