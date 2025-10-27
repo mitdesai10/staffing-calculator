@@ -149,6 +149,33 @@ function renderPositions() {
 // ========================================
 
 function createPositionCard(position) {
+    // Calculate margins for all three locations
+    const onshoreMargin = position.roleData.onshore.cost > 0 
+        ? ((position.clientRate - position.roleData.onshore.cost) / position.clientRate) * 100 
+        : 0;
+    const offshoreMargin = position.roleData.offshore.cost > 0 
+        ? ((position.clientRate - position.roleData.offshore.cost) / position.clientRate) * 100 
+        : 0;
+    const nearshoreMargin = position.roleData.nearshore.cost > 0 
+        ? ((position.clientRate - position.roleData.nearshore.cost) / position.clientRate) * 100 
+        : 0;
+    
+    // Find best location
+    const margins = [
+        { location: 'onshore', margin: onshoreMargin, cost: position.roleData.onshore.cost },
+        { location: 'offshore', margin: offshoreMargin, cost: position.roleData.offshore.cost },
+        { location: 'nearshore', margin: nearshoreMargin, cost: position.roleData.nearshore.cost }
+    ];
+    
+    margins.sort((a, b) => b.margin - a.margin);
+    const bestLocation = margins[0];
+    
+    // Calculate savings vs current selection
+    const currentMargin = (position.desiredMargin * 100);
+    const savingsVsBest = bestLocation.margin - currentMargin;
+    const bestTotalCost = position.hours * (position.cost / (1 - position.desiredMargin));
+    const potentialSavings = position.totalCost - (position.hours * (bestLocation.cost / (1 - position.desiredMargin)));
+    
     const card = document.createElement('div');
     card.className = 'position-card';
     card.innerHTML = `
@@ -180,6 +207,40 @@ function createPositionCard(position) {
                 <span class="position-metric-label">Total Cost to Client</span>
                 <span class="position-metric-value" style="font-size: 1.25rem; color: var(--primary-blue);">${formatCurrency(position.totalCost)}</span>
             </div>
+        </div>
+        
+        <!-- Best Location Analysis -->
+        <div class="best-location-card">
+            <div class="best-location-header">
+                <span class="best-location-icon">🏆</span>
+                <span class="best-location-title">Best Location Analysis</span>
+            </div>
+            <div class="location-comparison">
+                <div class="location-option ${position.location === 'onshore' ? 'selected' : ''} ${bestLocation.location === 'onshore' ? 'best' : ''}">
+                    <div class="location-option-name">Onshore</div>
+                    <div class="location-option-margin">${onshoreMargin.toFixed(1)}%</div>
+                    ${bestLocation.location === 'onshore' ? '<div class="location-badge">Best</div>' : ''}
+                </div>
+                <div class="location-option ${position.location === 'offshore' ? 'selected' : ''} ${bestLocation.location === 'offshore' ? 'best' : ''}">
+                    <div class="location-option-name">Offshore</div>
+                    <div class="location-option-margin">${offshoreMargin.toFixed(1)}%</div>
+                    ${bestLocation.location === 'offshore' ? '<div class="location-badge">Best</div>' : ''}
+                </div>
+                <div class="location-option ${position.location === 'nearshore' ? 'selected' : ''} ${bestLocation.location === 'nearshore' ? 'best' : ''}">
+                    <div class="location-option-name">Nearshore</div>
+                    <div class="location-option-margin">${nearshoreMargin.toFixed(1)}%</div>
+                    ${bestLocation.location === 'nearshore' ? '<div class="location-badge">Best</div>' : ''}
+                </div>
+            </div>
+            ${position.location !== bestLocation.location ? `
+                <div class="savings-alert">
+                    <strong>💰 Potential Savings:</strong> Switch to ${bestLocation.location} to gain ${savingsVsBest.toFixed(1)}% more margin (save ${formatCurrency(Math.abs(potentialSavings))})
+                </div>
+            ` : `
+                <div class="optimal-choice">
+                    ✅ You've selected the optimal location!
+                </div>
+            `}
         </div>
     `;
     return card;
@@ -277,7 +338,7 @@ function updateSummary() {
         }
     });
     
-    // Calculate average margins for each location (these should equal desired margin)
+    // Calculate average margins for each location
     const avgOnshoreMargin = onshoreCount > 0 ? onshoreMarginSum / onshoreCount : 0;
     const avgOffshoreMargin = offshoreCount > 0 ? offshoreMarginSum / offshoreCount : 0;
     const avgNearshoreMargin = nearshoreCount > 0 ? nearshoreMarginSum / nearshoreCount : 0;
@@ -299,6 +360,108 @@ function updateSummary() {
     
     document.getElementById('summarySelected').textContent = formatCurrency(totalSelected);
     document.getElementById('summarySelectedMargin').textContent = `at ${formatPercentage(avgDesiredMargin)} avg margin`;
+    
+    // Best location analysis
+    updateBestLocationSummary(totalOnshore, totalOffshore, totalNearshore, totalSelected, avgOnshoreMargin, avgOffshoreMargin, avgNearshoreMargin);
+}
+
+// ========================================
+// Update Best Location Summary
+// ========================================
+
+function updateBestLocationSummary(onshore, offshore, nearshore, selected, onshoreMargin, offshoreMargin, nearshoreMargin) {
+    const summaryDiv = document.getElementById('bestLocationSummary');
+    const contentDiv = document.getElementById('bestLocationContent');
+    
+    // Find best option
+    const options = [
+        { name: 'All Onshore', cost: onshore, margin: onshoreMargin, location: 'onshore' },
+        { name: 'All Offshore', cost: offshore, margin: offshoreMargin, location: 'offshore' },
+        { name: 'All Nearshore', cost: nearshore, margin: nearshoreMargin, location: 'nearshore' }
+    ];
+    
+    // Sort by lowest cost (best for client)
+    options.sort((a, b) => a.cost - b.cost);
+    const bestOption = options[0];
+    const worstOption = options[2];
+    
+    // Calculate savings
+    const savingsVsWorst = worstOption.cost - bestOption.cost;
+    const savingsVsCurrent = selected - bestOption.cost;
+    const marginGain = (bestOption.margin - (savingsVsCurrent / selected)) * 100;
+    
+    // Count positions by location
+    const locationCounts = {
+        onshore: positions.filter(p => p.location === 'onshore').length,
+        offshore: positions.filter(p => p.location === 'offshore').length,
+        nearshore: positions.filter(p => p.location === 'nearshore').length
+    };
+    
+    // Generate content
+    let html = `
+        <div class="best-option-card">
+            <div class="best-option-badge">🏆 Best Overall Strategy</div>
+            <div class="best-option-name">${bestOption.name}</div>
+            <div class="best-option-details">
+                <div class="best-option-metric">
+                    <span class="label">Total Cost:</span>
+                    <span class="value">${formatCurrency(bestOption.cost)}</span>
+                </div>
+                <div class="best-option-metric">
+                    <span class="label">Avg Margin:</span>
+                    <span class="value">${formatPercentage(bestOption.margin)}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="savings-comparison">
+            <div class="savings-item">
+                <span class="savings-label">💰 Savings vs Most Expensive (${worstOption.name}):</span>
+                <span class="savings-value">${formatCurrency(savingsVsWorst)}</span>
+            </div>
+    `;
+    
+    if (savingsVsCurrent > 100) {
+        html += `
+            <div class="savings-item alert">
+                <span class="savings-label">⚠️ Potential Savings vs Your Current Mix:</span>
+                <span class="savings-value">${formatCurrency(savingsVsCurrent)}</span>
+            </div>
+            <div class="recommendation">
+                <strong>Recommendation:</strong> Consider switching more positions to ${bestOption.location} to maximize margin!
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="savings-item success">
+                <span class="savings-label">✅ Your Current Mix:</span>
+                <span class="savings-value">Nearly optimal! (within ${formatCurrency(Math.abs(savingsVsCurrent))} of best)</span>
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    
+    // Current mix breakdown
+    html += `
+        <div class="current-mix">
+            <h4>Your Current Location Mix:</h4>
+            <div class="mix-bars">
+                <div class="mix-bar onshore" style="width: ${(locationCounts.onshore / positions.length * 100)}%">
+                    <span>${locationCounts.onshore} Onshore</span>
+                </div>
+                <div class="mix-bar offshore" style="width: ${(locationCounts.offshore / positions.length * 100)}%">
+                    <span>${locationCounts.offshore} Offshore</span>
+                </div>
+                <div class="mix-bar nearshore" style="width: ${(locationCounts.nearshore / positions.length * 100)}%">
+                    <span>${locationCounts.nearshore} Nearshore</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    contentDiv.innerHTML = html;
+    summaryDiv.style.display = 'block';
 }
 
 // ========================================
